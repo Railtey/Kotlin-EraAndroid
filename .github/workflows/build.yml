@@ -81,6 +81,13 @@ jobs:
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "릴리즈 $tag 가 이미 있어 건너뜁니다. 새 릴리즈를 만들려면 versionName을 올리세요."
           else
+            # release-notes/<버전>.md 가 있으면 패치노트로 사용, 없으면 커밋 목록으로 자동 생성
+            notes_file="release-notes/$VERSION.md"
+            if [ -f "$notes_file" ]; then
+              notes=(--notes-file "$notes_file")
+            else
+              notes=(--generate-notes)
+            fi
             gh release create "$tag" "EraAndroid-v$VERSION.apk" \
-              --title "EraAndroid $tag" --generate-notes --target "$GITHUB_SHA"
+              --title "EraAndroid $tag" "${notes[@]}" --target "$GITHUB_SHA"
           fi
