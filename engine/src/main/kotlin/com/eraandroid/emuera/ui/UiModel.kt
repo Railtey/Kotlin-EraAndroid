@@ -125,6 +125,7 @@ class UiConverter {
                 val value = if (b.isButton) (if (b.isInteger) b.input else buttonIdFor(b)) else 0L
                 for (part in b.strArray) convertPart(part, b.isButton, value)?.let { spans.add(it) }
             }
+            foldTextIntoButtons(spans)
             val align = when (line.align) {
                 DisplayLineAlignment.CENTER -> UiAlign.CENTER
                 DisplayLineAlignment.RIGHT -> UiAlign.RIGHT
@@ -135,6 +136,49 @@ class UiConverter {
         synchronized(cache) { cache[line] = Cached(line.buttons, result) }
         return result
     }
+
+    /**
+     * 버튼이 2개 이상인 줄은 UI 가 버튼만 열로 나열하므로, 버튼 사이의 일반 글자
+     * (예: "×[ 45]애널애원하기" 의 ×) 를 옆 버튼에 붙여서 사라지지 않게 한다.
+     * 앞쪽 글자는 다음 버튼에, 마지막 버튼 뒤의 글자는 마지막 버튼에 붙인다.
+     */
+    private fun foldTextIntoButtons(spans: MutableList<UiSpan>) {
+        val values = spans.filter { it.isButton }.map { it.buttonValue }.distinct()
+        if (values.size < 2) return
+        val out = ArrayList<UiSpan>(spans.size)
+        val pending = ArrayList<UiSpan>()
+        var lastValue: Long? = null
+        for (sp in spans) {
+            if (!sp.isButton) {
+                if (sp.image != null || sp.text.isNotBlank()) pending.add(sp)
+                continue
+            }
+            for (p in pending) out.add(p.asButton(sp.buttonValue))
+            pending.clear()
+            out.add(sp)
+            lastValue = sp.buttonValue
+        }
+        val lv = lastValue
+        if (lv != null) for (p in pending) out.add(p.asButton(lv))
+        // UI 는 span 하나를 한 열로 그리므로 같은 버튼의 span 을 하나로 합친다 (색은 버튼 본문의 것)
+        val merged = ArrayList<UiSpan>(out.size)
+        var i = 0
+        while (i < out.size) {
+            val first = out[i]
+            var j = i + 1
+            while (j < out.size && out[j].buttonValue == first.buttonValue && out[j].image == null && first.image == null) j++
+            if (j == i + 1) { merged.add(first); i = j; continue }
+            val group = out.subList(i, j)
+            val main = group.maxByOrNull { it.text.trim().length } ?: first
+            merged.add(UiSpan(group.joinToString("") { it.text }, main.color, group.any { it.isBold }, group.any { it.isItalic }, true, first.buttonValue))
+            i = j
+        }
+        spans.clear()
+        spans.addAll(merged)
+    }
+
+    private fun UiSpan.asButton(value: Long) =
+        UiSpan(text, color, isBold, isItalic, true, value, image, imageWidthEm, imageHeightEm)
 
     private fun convertPart(part: AConsoleDisplayPart, isButton: Boolean, value: Long): UiSpan? = when (part) {
         is ConsoleStyledString -> {

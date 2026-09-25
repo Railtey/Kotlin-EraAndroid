@@ -57,7 +57,7 @@ fun main(args: Array<String>) {
             InputType.IntValue -> {
                 val btns = c.snapshot().lines.takeLast(60).flatMap { it.buttons.toList() }.filter { c.canSelect(it) && it.isInteger }
                 if (btns.isNotEmpty() && rnd.nextInt(20) != 0) btns[rnd.nextInt(btns.size)].input.toString()
-                else if (req.hasDefValue) "" else listOf("0", "1", "2", "100", "999")[rnd.nextInt(5)]
+                else if (req.hasDefValue) "" else listOf("0", "1", "2", "100", "999", "-1")[rnd.nextInt(6)]
             }
             InputType.StrValue -> {
                 val btns = c.snapshot().lines.takeLast(60).flatMap { it.buttons.toList() }.filter { c.canSelect(it) }

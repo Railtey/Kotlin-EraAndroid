@@ -63,6 +63,18 @@ class SmokeTest {
     }
 }
 
+class LenientTest {
+    @Test
+    fun outOfRangeReadsContinue() {
+        val dir = java.io.File(javaClass.classLoader.getResource("games/lenient/csv")!!.toURI()).parentFile.path
+        val c = EmueraEngine.bootSync(dir, HeadlessConsoleHost())
+        val t = c.snapshot().lines.joinToString("\n") { it.toString() }
+        println(t)
+        assertTrue("A=[] B=0 C=0 D=0" in t, t)
+        assertTrue("END" in t, t)
+    }
+}
+
 class ExprTest {
     @Test
     fun literals() {
@@ -90,6 +102,12 @@ class AndroidLayoutTest {
             val grid = c.snapshot().lines.filter { l -> l.buttons.any { it.isPrintC } }
             assertEquals(2, grid.size, lines.toString())
             assertEquals(listOf(2, 2), grid.map { l -> l.buttons.count { it.isButton } })
+            // 버튼 사이 글자(×, ○)는 옆 버튼에 붙어서 버튼당 span 하나가 된다
+            val ui = com.eraandroid.emuera.ui.UiConverter().snapshot(c)
+            val mixed = ui.lines.first { l -> l.text.contains("×") }
+            assertEquals(listOf("×[ 45]가○", "[ 46]나 "), mixed.spans.map { it.text }, mixed.spans.map { it.text }.toString())
+            assertEquals(listOf(45L, 46L), mixed.spans.map { it.buttonValue })
+            assertEquals(0xFFFF0000.toInt(), mixed.spans[0].color)
         } finally {
             com.eraandroid.emuera.config.Config.setScreenOverride(0, 0, 0)
         }
