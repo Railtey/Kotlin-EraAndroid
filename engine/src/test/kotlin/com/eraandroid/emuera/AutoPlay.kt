@@ -75,10 +75,20 @@ fun main(args: Array<String>) {
             while (c.consoleState == ConsoleState.WaitInput && (c.currentInputRequest?.timelimit ?: 0) > 0 && g++ < 1000) { Thread.sleep(5); c.tick() }
         }
         try {
-            f.get(30, TimeUnit.SECONDS)
+            f.get((System.getProperty("hangSec") ?: "30").toLong(), TimeUnit.SECONDS)
         } catch (e: TimeoutException) {
             val t = Thread.getAllStackTraces().keys.firstOrNull { it.name == "engine" }
-            problem = "HANG after input '$input'\n" + (t?.stackTrace?.take(40)?.joinToString("\n") ?: "")
+            val vals = (System.getProperty("hangEval") ?: "").split(';').filter { it.isNotBlank() }.joinToString(" ") { ex ->
+                try {
+                    val wc = com.eraandroid.emuera.sub.LexicalAnalyzer.analyse(com.eraandroid.emuera.sub.StringStream(ex), com.eraandroid.emuera.sub.LexEndWith.EoL, com.eraandroid.emuera.sub.LexAnalyzeFlag.None)
+                    val term = com.eraandroid.emuera.gamedata.expression.ExpressionParser.reduceExpressionTerm(wc, com.eraandroid.emuera.gamedata.expression.TermEndWith.EoL)
+                    "$ex=" + term?.getIntValue(GlobalStatic.EMediator!!)
+                } catch (e: Throwable) { "$ex=?($e)" }
+            }
+            log.append("=== hang eval: $vals\n")
+            val cl = GlobalStatic.Process?.getCurrentLine
+            val pos = cl?.position
+            problem = "HANG after input '$input' at ${pos?.filename}:${pos?.lineNo} @${cl?.parentLabelLine?.labelName}\n" + (t?.stackTrace?.take(40)?.joinToString("\n") ?: "")
             break
         } catch (e: Exception) {
             val cause = e.cause ?: e

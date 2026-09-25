@@ -1,5 +1,7 @@
 package com.eraandroid.emuera.gamedata.expression
 
+import com.eraandroid.emuera.config.Config
+
 import com.eraandroid.emuera.gamedata.function.FunctionMethod
 import com.eraandroid.emuera.gamedata.function.FunctionMethodTerm
 import com.eraandroid.emuera.gamedata.variable.VariableTerm
@@ -57,12 +59,22 @@ object OperatorMethodManager {
         binaryIntIntDic[OperatorCode.Mult] = IntOp({ e, a -> a[0]!!.getIntValue(e) * a[1]!!.getIntValue(e) })
         binaryIntIntDic[OperatorCode.Div] = IntOp({ e, a ->
             val right = a[1]!!.getIntValue(e)
-            if (right == 0L) throw CodeEE("0による除算が行なわれました")
+            if (right == 0L) {
+                // Android 版: 0 で割っても止めずに 0 とする (Config.LenientArrayAccess)
+                if (!Config.LenientArrayAccess) throw CodeEE("0による除算が行なわれました")
+                a[0]!!.getIntValue(e)
+                return@IntOp 0L
+            }
             a[0]!!.getIntValue(e) / right
         })
         binaryIntIntDic[OperatorCode.Mod] = IntOp({ e, a ->
             val right = a[1]!!.getIntValue(e)
-            if (right == 0L) throw CodeEE("0による除算が行なわれました")
+            if (right == 0L) {
+                // Android 版: 0 で割っても止めずに 0 とする (Config.LenientArrayAccess)
+                if (!Config.LenientArrayAccess) throw CodeEE("0による除算が行なわれました")
+                a[0]!!.getIntValue(e)
+                return@IntOp 0L
+            }
             a[0]!!.getIntValue(e) % right
         })
         binaryIntIntDic[OperatorCode.Equal] = IntOp({ e, a -> b(a[0]!!.getIntValue(e) == a[1]!!.getIntValue(e)) })

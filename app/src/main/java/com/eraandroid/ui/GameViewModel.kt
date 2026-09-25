@@ -123,6 +123,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         override val clientHeight: Int get() = 480
         override val isActive: Boolean get() = true
 
+        /** 무한 반복 의심: 입력 후 30초 넘게 계속되면 중단 (PC 판은 여기서 사용자에게 묻는다) */
+        private var loopSince = 0L
+        override fun confirmInfiniteLoop(message: String): Boolean {
+            val now = System.currentTimeMillis()
+            if (loopSince == 0L || now - loopSince > 120_000) loopSince = now
+            if (now - loopSince < 30_000) return false
+            loopSince = 0L
+            _uiState.update { it.copy(errorMessage = "스크립트가 30초 넘게 끝나지 않아 중단했습니다.\n\n$message") }
+            return true
+        }
+
         override fun reportLoadProgress(text: String) {
             _uiState.update { it.copy(loadingStatus = text) }
         }
