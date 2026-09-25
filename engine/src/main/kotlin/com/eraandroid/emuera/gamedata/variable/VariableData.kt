@@ -111,7 +111,7 @@ class VariableData(val gameBase: GameBase, val constant: ConstantData) {
         varTokenDic["EMUERA_VERSION"] = PseudoStrToken(VariableCode.EMUERA_VERSION, this, true) { _, _ -> Program.InternalEmueraVer }
         varTokenDic["WINDOW_TITLE"] = WindowTitleToken(VariableCode.WINDOW_TITLE, this)
         varTokenDic["MONEYLABEL"] = SimpleStrToken(VariableCode.MONEYLABEL, this) { Config.MoneyLabel }
-        varTokenDic["DRAWLINESTR"] = SimpleStrToken(VariableCode.DRAWLINESTR, this) { it.console.getDefStBar() }
+        varTokenDic["DRAWLINESTR"] = SimpleStrToken(VariableCode.DRAWLINESTR, this) { it.console.getDefStBar() ?: "" }
         if (!Program.DebugMode) {
             varTokenDic["__FILE__"] = PseudoStrToken(VariableCode.__FILE__, this, true) { _, _ -> "" }
             varTokenDic["__FUNCTION__"] = PseudoStrToken(VariableCode.__FUNCTION__, this, true) { _, _ -> "" }

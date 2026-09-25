@@ -10,6 +10,7 @@ import com.eraandroid.emuera.content.GraphicsImage
 import com.eraandroid.emuera.content.SpriteG
 import com.eraandroid.emuera.gamedata.expression.EType
 import com.eraandroid.emuera.gamedata.expression.ExpressionParser
+import com.eraandroid.emuera.gamedata.expression.TermEndWith
 import com.eraandroid.emuera.gameproc.*
 import com.eraandroid.emuera.gameproc.function.ArgumentParser
 import com.eraandroid.emuera.gameproc.function.FunctionCode
@@ -34,7 +35,6 @@ class EmueraConsole(val host: ConsoleHost) {
     private val stringMeasure = StringMeasure()
     private lateinit var emuera: Process
 
-    init { cbgClear() }
 
     // ===================== CBG =====================
     class ClientBackGroundImage(val zdepth: Int) : Comparable<ClientBackGroundImage> {
@@ -645,7 +645,7 @@ class EmueraConsole(val host: ConsoleHost) {
             if (!com.startsWith("@") && !com.startsWith("\"") && !com.startsWith("\\")) line = LogicalLineParser.parseLine(com, null)
             if (line == null || line is InvalidLine) {
                 val wc = LexicalAnalyzer.analyse(StringStream(com), LexEndWith.EoL, LexAnalyzeFlag.None)
-                val term = ExpressionParser.reduceExpressionTerm(wc, com.eraandroid.emuera.gamedata.expression.TermEndWith.EoL) ?: throw CodeEE("解釈不能なコードです")
+                val term = ExpressionParser.reduceExpressionTerm(wc, TermEndWith.EoL) ?: throw CodeEE("解釈不能なコードです")
                 com = if (term.getOperandType() == EType.Int64) {
                     if (outputDebugConsole) "DEBUGPRINTFORML {$com}" else "PRINTVL $com"
                 } else {
@@ -709,6 +709,7 @@ class EmueraConsole(val host: ConsoleHost) {
     // ===================== Print =====================
     var noOutputLog = false
     var bgColor: EraColor = Config.BackColor
+        @JvmName("setBgColorField") private set
 
     fun clearDisplay() {
         synchronized(lock) { displayLineList.clear() }

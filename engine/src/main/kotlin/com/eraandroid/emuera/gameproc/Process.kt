@@ -227,6 +227,7 @@ class Process(private val console: EmueraConsole) {
 
     fun getRunningPosition(): ScriptPosition? = state.errorLine?.position
 
+    @get:JvmName("scaningLineField")
     var scaningLine: LogicalLine? = null
     fun getScaningLine(): LogicalLine? = scaningLine ?: state.errorLine
 

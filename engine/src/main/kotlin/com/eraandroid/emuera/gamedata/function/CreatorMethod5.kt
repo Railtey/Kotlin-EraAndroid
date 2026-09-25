@@ -650,7 +650,7 @@ internal class GraphicsSaveMethod : FunctionMethod() {
         if (i64 < 0 || i64 > Int.MAX_VALUE) return 0
         return try {
             Config.createSavDir()
-            if (Platform.graphics.saveImage(g.getBitmap(), GraphicsArgs.getSaveDataPathGraphics(i64.toInt()))) 1 else 0
+            if (Platform.graphics.saveImage(g.bitmap!!, GraphicsArgs.getSaveDataPathGraphics(i64.toInt()))) 1 else 0
         } catch (e: Exception) { 0 }
     }
 }

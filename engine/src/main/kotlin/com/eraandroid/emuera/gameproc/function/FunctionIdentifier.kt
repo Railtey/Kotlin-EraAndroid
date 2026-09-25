@@ -192,8 +192,8 @@ class FunctionIdentifier private constructor(
         addFunction(FunctionCode.ADDVOIDCHARA, ADDVOIDCHARA_Instruction())
         addFunction(FunctionCode.DELCHARA, ADDCHARA_Instruction(false, true))
         addFunction(FunctionCode.PUTFORM, argb.getValue(FunctionArgType.FORM_STR_NULLABLE), METHOD_SAFE)
-        addFunction(FunctionCode.QUIT, argb.getValue(FunctionArgType.VOID)).
-        addFunction(FunctionCode.OUTPUTLOG, argb.getValue(FunctionArgType.VOID)).
+        addFunction(FunctionCode.QUIT, argb.getValue(FunctionArgType.VOID))
+        addFunction(FunctionCode.OUTPUTLOG, argb.getValue(FunctionArgType.VOID))
         addFunction(FunctionCode.BEGIN, BEGIN_Instruction())
         addFunction(FunctionCode.SAVEGAME, SAVELOADGAME_Instruction(true))
         addFunction(FunctionCode.LOADGAME, SAVELOADGAME_Instruction(false))

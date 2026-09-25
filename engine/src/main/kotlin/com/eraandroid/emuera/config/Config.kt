@@ -6,10 +6,12 @@ import java.nio.charset.Charset
 
 /** 設定値 (Config.cs) */
 object Config {
-    @JvmField var Encode: Charset = Charset.forName("Shift_JIS")
-    @JvmField var SaveEncode: Charset = Charset.forName("Shift_JIS")
+    /** Windows の Shift-JIS (CP932)。無ければ標準の Shift_JIS */
+    @JvmField val SJIS: Charset = try { Charset.forName("windows-31j") } catch (e: Exception) { Charset.forName("Shift_JIS") }
+    @JvmField var Encode: Charset = SJIS
+    @JvmField var SaveEncode: Charset = SJIS
     /** Encoding used for byte-length string functions (STRLENS etc.) — LangManager */
-    @JvmField var LangEncode: Charset = Charset.forName("Shift_JIS")
+    @JvmField var LangEncode: Charset = SJIS
 
     private var nameDic: Map<ConfigCode, String> = emptyMap()
     fun getConfigName(code: ConfigCode): String = nameDic[code] ?: code.name
@@ -129,7 +131,7 @@ object Config {
         CompatiLinefeedAs1739 = instance.getConfigValue(ConfigCode.CompatiLinefeedAs1739)
         SystemAllowFullSpace = instance.getConfigValue(ConfigCode.SystemAllowFullSpace)
         SystemSaveInUTF8 = instance.getConfigValue(ConfigCode.SystemSaveInUTF8)
-        SaveEncode = if (SystemSaveInUTF8) Charsets.UTF_8 else Charset.forName("Shift_JIS")
+        SaveEncode = if (SystemSaveInUTF8) Charsets.UTF_8 else SJIS
         SystemSaveInBinary = instance.getConfigValue(ConfigCode.SystemSaveInBinary)
         SystemIgnoreTripleSymbol = instance.getConfigValue(ConfigCode.SystemIgnoreTripleSymbol)
         SystemIgnoreStringSet = instance.getConfigValue(ConfigCode.SystemIgnoreStringSet)
@@ -142,7 +144,7 @@ object Config {
         SystemNoTarget = instance.getConfigValue(ConfigCode.SystemNoTarget)
 
         when (instance.getConfigValue<UseLanguage>(ConfigCode.useLanguage)) {
-            UseLanguage.JAPANESE -> { Language = 0x0411; LangEncode = charset("Shift_JIS", "windows-31j") }
+            UseLanguage.JAPANESE -> { Language = 0x0411; LangEncode = SJIS }
             UseLanguage.KOREAN -> { Language = 0x0412; LangEncode = charset("x-windows-949", "EUC-KR") }
             UseLanguage.CHINESE_HANS -> { Language = 0x0804; LangEncode = charset("GBK", "GB2312") }
             UseLanguage.CHINESE_HANT -> { Language = 0x0404; LangEncode = charset("Big5", "Big5") }

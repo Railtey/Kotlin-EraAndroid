@@ -16,9 +16,20 @@ object TextFileReader {
             bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte() -> { offset = 3; Charsets.UTF_8 }
             bytes.size >= 2 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xFE.toByte() -> { offset = 2; Charsets.UTF_16LE }
             bytes.size >= 2 && bytes[0] == 0xFE.toByte() && bytes[1] == 0xFF.toByte() -> { offset = 2; Charsets.UTF_16BE }
+            // Android 版の拡張: BOM なしでも UTF-8 として正しく読めるなら UTF-8 とみなす
+            fallback != Charsets.UTF_8 && hasMultiByte(bytes) && isValidUtf8(bytes) -> Charsets.UTF_8
             else -> fallback
         }
         return BufferedReader(InputStreamReader(bytes.inputStream(offset, bytes.size - offset), cs))
+    }
+
+    private fun hasMultiByte(bytes: ByteArray): Boolean = bytes.any { it < 0 }
+
+    private fun isValidUtf8(bytes: ByteArray): Boolean {
+        val dec = Charsets.UTF_8.newDecoder()
+            .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+            .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+        return try { dec.decode(java.nio.ByteBuffer.wrap(bytes)); true } catch (_: java.nio.charset.CharacterCodingException) { false }
     }
 
     fun readAllLines(file: File): List<String> = open(file).use { r -> r.readLines() }

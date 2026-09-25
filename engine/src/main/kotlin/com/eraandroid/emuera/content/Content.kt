@@ -237,13 +237,13 @@ class GraphicsImage(val id: Int) : AbstractImage() {
     fun gDrawCImg(img: ASprite, destRect: ERect) = img.graphicsDraw(g(), destRect)
     fun gDrawCImg(img: ASprite, destRect: ERect, cm: Array<FloatArray>) = img.graphicsDraw(g(), destRect, cm)
 
-    fun gDrawG(srcGra: GraphicsImage, destRect: ERect, srcRect: ERect) = g().drawImage(srcGra.getBitmap(), destRect, srcRect)
-    fun gDrawG(srcGra: GraphicsImage, destRect: ERect, srcRect: ERect, cm: Array<FloatArray>) = g().drawImage(srcGra.getBitmap(), destRect, srcRect, cm)
+    fun gDrawG(srcGra: GraphicsImage, destRect: ERect, srcRect: ERect) = g().drawImage(srcGra.g(), destRect, srcRect)
+    fun gDrawG(srcGra: GraphicsImage, destRect: ERect, srcRect: ERect, cm: Array<FloatArray>) = g().drawImage(srcGra.g(), destRect, srcRect, cm)
 
     fun gDrawGWithMask(srcGra: GraphicsImage, maskGra: GraphicsImage, destPoint: EPoint) {
         val dest = g()
-        val src = srcGra.getBitmap()
-        val mask = maskGra.getBitmap()
+        val src = srcGra.g()
+        val mask = maskGra.g()
         for (y in 0 until srcGra.height) {
             val dy = destPoint.y + y
             if (dy < 0 || dy >= dest.height) continue
@@ -295,9 +295,8 @@ class GraphicsImage(val id: Int) : AbstractImage() {
         return true
     }
 
-    fun getBitmap(): Raster = bitmap ?: throw NullPointerException()
-    fun gSetColor(argb: Int, x: Int, y: Int) = getBitmap().setPixel(x, y, argb)
-    fun gGetColor(x: Int, y: Int): Int = getBitmap().getPixel(x, y)
+    fun gSetColor(argb: Int, x: Int, y: Int) = g().setPixel(x, y, argb)
+    fun gGetColor(x: Int, y: Int): Int = g().getPixel(x, y)
 
     fun gDispose() {
         size = ESize(0, 0)
