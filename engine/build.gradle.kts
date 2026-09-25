@@ -23,4 +23,6 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    System.getProperty("bigGame")?.let { systemProperty("bigGame", it) }
+    jvmArgs("-Xss64m")
 }

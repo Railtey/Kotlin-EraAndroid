@@ -12,8 +12,8 @@ android {
         applicationId = "com.eraandroid"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2"
+        versionCode = 3
+        versionName = "0.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
