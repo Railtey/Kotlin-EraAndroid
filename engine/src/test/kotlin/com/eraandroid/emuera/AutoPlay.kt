@@ -13,6 +13,8 @@ import kotlin.random.Random
  * 랜덤 자동 플레이: java ... AutoPlayKt <gameDir> <prefixInputs> <steps> <seed> <out>
  * 입력 대기 때마다 선택 가능한 버튼 중 하나를 고르고, 에러/예외/멈춤을 찾는다.
  */
+private val SUSPICIOUS = Regex("""\\@|\{[A-Z_]+[:}]|%[A-Z_]+[:%]|\bnull\b|NaN|Exception|整数型最小値|警告""")
+
 fun main(args: Array<String>) {
     val dir = args[0]
     val prefix = File(args[1]).readLines().filter { it.isNotEmpty() && !it.startsWith("#") }
@@ -44,6 +46,7 @@ fun main(args: Array<String>) {
     }
     collect()
     val conv = com.eraandroid.emuera.ui.UiConverter()
+    val suspicious = LinkedHashSet<String>()
     var step = 0
     var problem: String? = null
     val history = ArrayList<String>()
@@ -84,6 +87,7 @@ fun main(args: Array<String>) {
         }
         try { conv.snapshot(c) } catch (e: Exception) { problem = "UiConverter: $e\n" + e.stackTrace.take(20).joinToString("\n"); break }
         val new = collect()
+        for (l in new) if (SUSPICIOUS.containsMatchIn(l) && suspicious.size < 200) suspicious.add(l)
         val bad = new.firstOrNull { it.contains("エラーが発生しました") || it.contains("에러가 발생") || it.contains("内部エラー") || it.startsWith("警告Lv") }
         if (bad != null) { problem = "error text: $bad"; break }
         step++
@@ -94,6 +98,8 @@ fun main(args: Array<String>) {
     log.append("=== recent output:\n")
     collect()
     for (l in recent) log.append(l).append('\n')
+    log.append("=== suspicious lines: ${suspicious.size}\n")
+    for (l in suspicious) log.append("?? ").append(l).append('\n')
     log.append("=== full input history:\n").append(history.joinToString("\n")).append('\n')
     out.writeText(log.toString())
     System.exit(if (problem == null) 0 else 1)
