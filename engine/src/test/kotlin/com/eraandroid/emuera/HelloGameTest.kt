@@ -51,3 +51,14 @@ class HelloGameTest {
         assertTrue("終了" in t2, t2)
     }
 }
+
+class SmokeTest {
+    @Test
+    fun smoke() {
+        val dir = java.io.File(javaClass.classLoader.getResource("games/smoke/csv")!!.toURI()).parentFile.path
+        val c = EmueraEngine.bootSync(dir, HeadlessConsoleHost())
+        val t = c.snapshot().lines.joinToString("\n") { it.toString() }
+        println(t)
+        assertTrue("END" in t, t)
+    }
+}
