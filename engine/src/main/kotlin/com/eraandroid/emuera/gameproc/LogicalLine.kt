@@ -109,6 +109,7 @@ open class FunctionLabelLine protected constructor() : LogicalLine(), Comparable
     var isMethod = false
     var methodType: EType = EType.Void
     var arg: Array<VariableTerm> = arrayOf()
+    var argParsed = false
     var def: Array<SingleTerm?> = arrayOf()
     var depth = -1
     var index = -1
