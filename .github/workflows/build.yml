@@ -42,6 +42,22 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon assembleRelease
 
+      # 0.1 릴리즈와 같은 키로 서명됐는지 확인 (다르면 기존 설치본이 업데이트되지 않음)
+      - name: Verify signing certificate
+        env:
+          EXPECTED_CERT_SHA256: 5fb434bf14f7bca0d7efbe5d600cd0a12bfaf74a87964f497fe75afcd940ebc1
+        run: |
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk | tee certs.txt
+          if grep -qi "SHA-256 digest: $EXPECTED_CERT_SHA256" certs.txt; then
+            echo "서명 키가 0.1 릴리즈와 일치합니다."
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "::error::서명 키가 0.1 릴리즈와 다릅니다. 릴리즈를 만들지 않습니다."
+            exit 1
+          else
+            echo "::warning::서명 키가 0.1 릴리즈와 다릅니다."
+          fi
+
       - name: Read version
         id: version
         run: |
