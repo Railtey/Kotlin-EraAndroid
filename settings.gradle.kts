@@ -21,3 +21,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "EraAndroid"
 include(":app")
+
+// 에뮤에라 엔진 (순수 코틀린, JVM 에서 단독 테스트 가능)
+includeBuild("engine")

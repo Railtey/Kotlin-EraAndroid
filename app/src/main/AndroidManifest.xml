@@ -14,6 +14,7 @@
         android:label="EraAndroid"
         android:supportsRtl="false"
         android:largeHeap="true"
+        android:requestLegacyExternalStorage="true"
         android:theme="@style/Theme.EraAndroid"
         android:hardwareAccelerated="true">
 

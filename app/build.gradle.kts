@@ -43,6 +43,8 @@ android {
     }
 
     compileOptions {
+        // 엔진이 java.time 을 쓰므로 Android 7 (API 24~25) 용 디슈가링
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -58,6 +60,10 @@ android {
 }
 
 dependencies {
+    // Emuera engine (engine/ 폴더)
+    implementation("com.eraandroid:engine:1.0")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
+
     // Core
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
