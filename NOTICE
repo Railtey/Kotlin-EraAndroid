@@ -1,0 +1,17 @@
+EraAndroid
+==========
+
+이 앱의 게임 엔진(engine/ 폴더)은 Emuera 1.824 의 C# 소스 코드를 코틀린으로 옮긴 것입니다.
+
+Emuera
+  Copyright (C) 2008- MinorShift, 妊）|дﾟ)の中の人
+  라이선스 전문: engine/LICENSE-Emuera.txt
+
+원본에서 변경한 내용 (Emuera 라이선스 제2조에 따른 명시)
+  - C# (.NET / Windows Forms) 코드를 코틀린 (JVM / Android) 코드로 옮겨 적었습니다.
+  - 화면 출력(Windows Forms, GDI/GDI+)을 안드로이드용 렌더러와 순수 코틀린 비트맵 처리로 바꾸었습니다.
+  - 파일 경로의 대소문자 구분, BOM 없는 UTF-8 파일 자동 인식 등 안드로이드 환경에 맞춘 처리를 추가했습니다.
+  - 디버그 창, 설정 대화상자, 클립보드, 소리 등 Windows 전용 기능은 빠졌거나 동작하지 않습니다.
+  - 그 밖의 세부 변경 사항은 이 저장소의 커밋 기록에서 확인할 수 있습니다.
+
+이 소프트웨어는 원본 Emuera 가 아니며, Emuera 의 원작자와 관계가 없습니다.

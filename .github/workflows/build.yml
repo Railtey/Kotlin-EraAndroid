@@ -33,6 +33,11 @@ jobs:
             echo "::warning::RELEASE_KEYSTORE_BASE64 시크릿이 없어 디버그 키로 서명합니다."
           fi
 
+      - name: Engine tests
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon -p engine test
+
       - name: Build release APK
         env:
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}

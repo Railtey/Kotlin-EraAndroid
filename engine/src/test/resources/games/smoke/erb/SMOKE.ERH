@@ -1,0 +1,2 @@
+#DIM SAVEDATA GLOBALNUM = 5
+#DIMS CONST WEEK, 3 = "月", "火", "水"
