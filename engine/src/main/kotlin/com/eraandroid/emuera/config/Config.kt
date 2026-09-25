@@ -157,7 +157,7 @@ object Config {
         if (MaxLog < 500) MaxLog = 500
 
         DrawingParam_ShapePositionShift = maxOf(2, FontSize / 6)
-        DrawableWidth = WindowX - DrawingParam_ShapePositionShift
+        applyScreenOverride()
         ForceSavDir = Program.ExeDir + "sav/"
         SavDir = if (UseSaveFolder) Program.ExeDir + "sav/" else Program.ExeDir
         if (UseSaveFolder) File(SavDir).mkdirs()
@@ -172,6 +172,26 @@ object Config {
 
     private fun charset(name: String, fallback: String): Charset =
         try { Charset.forName(name) } catch (e: Exception) { try { Charset.forName(fallback) } catch (e2: Exception) { Charsets.UTF_8 } }
+
+    // ── Android 版: 画面幅に合わせた上書き (UI の文字数に合わせる) ──
+    private var overrideCols = 0
+    private var overridePrintCPerLine = 0
+    private var overridePrintCLength = 0
+
+    /** cols: 1行に入る半角文字数。0 で上書きなし */
+    fun setScreenOverride(cols: Int, printCPerLine: Int, printCLength: Int) {
+        overrideCols = cols
+        overridePrintCPerLine = printCPerLine
+        overridePrintCLength = printCLength
+        applyScreenOverride()
+    }
+
+    private fun applyScreenOverride() {
+        if (overrideCols > 0) WindowX = overrideCols * FontSize / 2 + DrawingParam_ShapePositionShift
+        if (overridePrintCPerLine > 0) PrintCPerLine = overridePrintCPerLine
+        if (overridePrintCLength > 0) PrintCLength = overridePrintCLength
+        DrawableWidth = WindowX - DrawingParam_ShapePositionShift
+    }
 
     fun forceCreateSavDir() { File(ForceSavDir).mkdirs() }
     fun createSavDir() { if (UseSaveFolder) File(SavDir).mkdirs() }
