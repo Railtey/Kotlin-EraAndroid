@@ -881,10 +881,13 @@ class EmueraConsole(val host: ConsoleHost) {
 
     fun printC(str: String?, alignmentRight: Boolean) {
         if (str.isNullOrEmpty()) return
-        printBuffer.append(createTypeCString(str, alignmentRight), style, true)
+        printBuffer.appendC(createTypeCString(str, alignmentRight), style)
     }
 
+    private var printCWidthFor = -1
+
     private fun calcPrintCWidth() {
+        printCWidthFor = Config.PrintCLength
         var s = " ".repeat(Config.PrintCLength)
         val font = configFont()
         printCWidth = stringMeasure.getDisplayLength(s, font)
@@ -894,7 +897,7 @@ class EmueraConsole(val host: ConsoleHost) {
 
     private fun createTypeCString(strIn: String, alignmentRight: Boolean): String {
         var str = strIn
-        if (printCWidth == -1) calcPrintCWidth()
+        if (printCWidth == -1 || printCWidthFor != Config.PrintCLength) calcPrintCWidth()
         val length = LangManager.getStrlenLang(str)
         val printcLength = Config.PrintCLength
         val font = com.eraandroid.emuera.platform.EFont(style.fontname, Config.FontSize, style.fontStyle)
@@ -920,8 +923,8 @@ class EmueraConsole(val host: ConsoleHost) {
 
     fun printButton(str: String?, p: String) { if (!str.isNullOrEmpty()) printBuffer.appendButton(str, style, p) }
     fun printButton(str: String?, p: Long) { if (!str.isNullOrEmpty()) printBuffer.appendButton(str, style, p) }
-    fun printButtonC(str: String?, p: String, isRight: Boolean) { if (!str.isNullOrEmpty()) printBuffer.appendButton(createTypeCString(str, isRight), style, p) }
-    fun printButtonC(str: String?, p: Long, isRight: Boolean) { if (!str.isNullOrEmpty()) printBuffer.appendButton(createTypeCString(str, isRight), style, p) }
+    fun printButtonC(str: String?, p: String, isRight: Boolean) { if (!str.isNullOrEmpty()) printBuffer.appendButtonC(createTypeCString(str, isRight), style, p) }
+    fun printButtonC(str: String?, p: Long, isRight: Boolean) { if (!str.isNullOrEmpty()) printBuffer.appendButtonC(createTypeCString(str, isRight), style, p) }
     fun printPlain(str: String?) { if (!str.isNullOrEmpty()) printBuffer.appendPlainText(str, style) }
 
     fun newLine() {

@@ -1,6 +1,7 @@
 package com.eraandroid.emuera.gamedata
 
 import com.eraandroid.emuera.sub.EraStreamReader
+import com.eraandroid.emuera.sub.FileUtil
 import com.eraandroid.emuera.sub.ScriptPosition
 import java.io.File
 
@@ -49,7 +50,7 @@ class GameBase {
 
     /** GAMEBASE読み込み。読み込み続行するなら真 */
     fun loadGameBaseCsv(basePath: String): Boolean {
-        if (!File(basePath).exists()) return true
+        if (!FileUtil.exists(basePath)) return true
         var pos: ScriptPosition? = null
         val eReader = EraStreamReader(false)
         if (!eReader.open(basePath)) return true

@@ -964,9 +964,14 @@ class Process(private val console: EmueraConsole) {
                     continue
                 }
                 val inst = func.function.instruction
-                if (inst != null) inst.doInstruction(exm, func, state)
-                else if (func.function.isFlowContorol()) doFlowControlFunction(func)
-                else doNormalFunction(func)
+                try {
+                    if (inst != null) inst.doInstruction(exm, func, state)
+                    else if (func.function.isFlowContorol()) doFlowControlFunction(func)
+                    else doNormalFunction(func)
+                } catch (e: ArrayRangeCodeEE) {
+                    // Android 版: 配列の範囲外への書き込み等はその命令を無視して次の行へ進む
+                    if (!Config.LenientArrayAccess || func.function.isFlowContorol()) throw e
+                }
             } else if (line is NullLine || line is FunctionLabelLine) {
                 if (!state.isFunctionMethod) vEvaluator.RESULT = 0
                 state.`return`(0)

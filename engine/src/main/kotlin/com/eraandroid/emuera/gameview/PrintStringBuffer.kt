@@ -32,6 +32,24 @@ class PrintStringBuffer(private val parent: EmueraConsole) {
         mStringList.add(part)
     }
 
+    /** PRINTC 系の文字列を追加 (列表示用の印を付ける) */
+    fun appendC(str: String, style: StringStyle) {
+        fromCssToButton()
+        val from = mButtonList.size
+        append(str, style, true)
+        for (k in from until mButtonList.size) mButtonList[k]?.isPrintC = true
+    }
+
+    fun appendButtonC(str: String, style: StringStyle, input: String) {
+        appendButton(str, style, input)
+        mButtonList.lastOrNull()?.isPrintC = true
+    }
+
+    fun appendButtonC(str: String, style: StringStyle, input: Long) {
+        appendButton(str, style, input)
+        mButtonList.lastOrNull()?.isPrintC = true
+    }
+
     fun append(strIn: String, style: StringStyle, forceButton: Boolean = false) {
         var str = strIn
         if (bufferStrLength > 2000) return
@@ -180,12 +198,33 @@ class PrintStringBuffer(private val parent: EmueraConsole) {
             val windowWidth = Config.DrawableWidth
             var firstLine = true
             var i = 0
+            val grid = Config.printCGrid
+            var cInLine = 0
             while (i < buttonList.size) {
                 val b = buttonList[i]
                 if (b == null) {
                     lineList.add(toLine(lineButtonList, firstLine, temporary))
                     firstLine = false
+                    cInLine = 0
                     buttonList.removeAt(i)
+                    continue
+                }
+                // Android の列表示: PRINTC は幅ではなく個数 (PRINTCを並べる数) で改行する
+                if (grid && b.isPrintC) {
+                    if (cInLine >= Config.PrintCPerLine && lineButtonList.isNotEmpty()) {
+                        lineList.add(toLine(lineButtonList, firstLine, temporary))
+                        firstLine = false
+                        cInLine = 0
+                    }
+                    lineButtonList.add(b)
+                    cInLine++
+                    i++
+                    continue
+                }
+                if (grid && cInLine > 0 && lineButtonList.isNotEmpty() && lineButtonList.all { it.isPrintC } && b.toString().isBlank()) {
+                    // PRINTC の後ろの空白だけの部分は同じ行に置く
+                    lineButtonList.add(b)
+                    i++
                     continue
                 }
                 if (nobr || b.pointX + b.width <= windowWidth) {
@@ -210,6 +249,7 @@ class PrintStringBuffer(private val parent: EmueraConsole) {
                 }
                 lineList.add(toLine(lineButtonList, firstLine, temporary))
                 firstLine = false
+                cInLine = 0
                 var pointX = 0
                 for (j in i until buttonList.size) {
                     val bj = buttonList[j] ?: break

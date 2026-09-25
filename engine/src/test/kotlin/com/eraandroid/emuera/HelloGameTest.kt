@@ -62,3 +62,54 @@ class SmokeTest {
         assertTrue("END" in t, t)
     }
 }
+
+class LenientTest {
+    @Test
+    fun outOfRangeReadsContinue() {
+        val dir = java.io.File(javaClass.classLoader.getResource("games/lenient/csv")!!.toURI()).parentFile.path
+        val c = EmueraEngine.bootSync(dir, HeadlessConsoleHost())
+        val t = c.snapshot().lines.joinToString("\n") { it.toString() }
+        println(t)
+        assertTrue("A=[] B=0 C=0 D=0" in t, t)
+        assertTrue("END" in t, t)
+    }
+}
+
+class ExprTest {
+    @Test
+    fun literals() {
+        val dir = java.io.File(javaClass.classLoader.getResource("games/expr/csv")!!.toURI()).parentFile.path
+        val c = EmueraEngine.bootSync(dir, HeadlessConsoleHost())
+        val t = c.snapshot().lines.joinToString("\n") { it.toString() }
+        println(t)
+        val mx = Long.MAX_VALUE; val mn = Long.MIN_VALUE
+        assertTrue("A=$mx B=$mn C=$mn D=1024 E=5 F=" in t, t)
+        assertTrue("H=$mx I=105 J=-2 K=-2 L=5 M=-1" in t, t)
+    }
+}
+
+class AndroidLayoutTest {
+    @Test
+    fun upperCaseFoldersAndPrintCGrid() {
+        val dir = java.io.File(javaClass.classLoader.getResource("games/upper/CSV")!!.toURI()).parentFile.path
+        com.eraandroid.emuera.config.Config.setScreenOverride(40, 2, 19)
+        try {
+            val c = EmueraEngine.bootSync(dir, HeadlessConsoleHost())
+            val lines = c.snapshot().lines.map { it.toString() }
+            println(lines.joinToString("\n"))
+            assertTrue(lines.any { "TITLE=大文字テスト" in it }, lines.toString())
+            // 2 列ずつ並ぶ (長い項目でも列数で改行)
+            val grid = c.snapshot().lines.filter { l -> l.buttons.any { it.isPrintC } }
+            assertEquals(2, grid.size, lines.toString())
+            assertEquals(listOf(2, 2), grid.map { l -> l.buttons.count { it.isButton } })
+            // 버튼 사이 글자(×, ○)는 옆 버튼에 붙어서 버튼당 span 하나가 된다
+            val ui = com.eraandroid.emuera.ui.UiConverter().snapshot(c)
+            val mixed = ui.lines.first { l -> l.text.contains("×") }
+            assertEquals(listOf("×[ 45]가○", "[ 46]나 "), mixed.spans.map { it.text }, mixed.spans.map { it.text }.toString())
+            assertEquals(listOf(45L, 46L), mixed.spans.map { it.buttonValue })
+            assertEquals(0xFFFF0000.toInt(), mixed.spans[0].color)
+        } finally {
+            com.eraandroid.emuera.config.Config.setScreenOverride(0, 0, 0)
+        }
+    }
+}

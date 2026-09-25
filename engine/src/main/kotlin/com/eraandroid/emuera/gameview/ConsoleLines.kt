@@ -24,6 +24,8 @@ class ConsoleButtonString(private var parent: EmueraConsole?, strs: Array<AConso
         private set
     var errPos: ScriptPosition? = null
     var title: String? = null
+    /** PRINTC 系で作られた (Android の列表示でまとめる) */
+    var isPrintC = false
     var relativePointX = 0
         private set
 

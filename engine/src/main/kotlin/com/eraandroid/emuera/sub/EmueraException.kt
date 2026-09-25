@@ -29,3 +29,6 @@ class ScriptPosition(srcFile: String? = null, srcLineNo: Int = -1) {
 
     override fun hashCode(): Int = filename.hashCode() xor lineNo.hashCode()
 }
+
+/** 配列の範囲外アクセス (Android 版では読み取りを 0/空文字にして続行できる) */
+class ArrayRangeCodeEE(message: String) : CodeEE(message)

@@ -40,8 +40,8 @@ object OperatorMethodManager {
     init {
         unaryDic[OperatorCode.Plus] = IntOp({ e, a -> a[0]!!.getIntValue(e) })
         unaryDic[OperatorCode.Minus] = IntOp({ e, a ->
-            val ret = a[0]!!.getIntValue(e)
-            if (ret == Long.MIN_VALUE) e.console.printSystemLine("整数型最小値(${Long.MIN_VALUE})は-を取っても値は変化しません")
+            // PC 版はここで「整数型最小値は-を取っても値は変化しません」と表示するが、
+            // -1p63-1 のように意図して使うゲームがあるため表示しない
             -a[0]!!.getIntValue(e)
         })
         unaryDic[OperatorCode.Not] = IntOp({ e, a -> b(a[0]!!.getIntValue(e) == 0L) })

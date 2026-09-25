@@ -4,6 +4,8 @@ import com.eraandroid.emuera.gamedata.expression.EType
 import com.eraandroid.emuera.gamedata.expression.ExpressionMediator
 import com.eraandroid.emuera.gamedata.expression.IOperandTerm
 import com.eraandroid.emuera.gamedata.expression.SingleTerm
+import com.eraandroid.emuera.config.Config
+import com.eraandroid.emuera.sub.ArrayRangeCodeEE
 import com.eraandroid.emuera.sub.CodeEE
 
 open class VariableTerm protected constructor(token: VariableToken, private val arguments: Array<IOperandTerm?>, dummy: Unit) : IOperandTerm(token.variableType) {
@@ -46,10 +48,23 @@ open class VariableTerm protected constructor(token: VariableToken, private val 
         }
     }
 
-    override fun getIntValue(exm: ExpressionMediator): Long = guard { evalArgs(exm); identifier.getIntValue(exm, transporter) }
-    override fun getStrValue(exm: ExpressionMediator): String = guard { evalArgs(exm); identifier.getStrValue(exm, transporter) ?: "" }
-    open fun setValue(value: Long, exm: ExpressionMediator) = guard { evalArgs(exm); identifier.setValue(value, transporter) }
-    open fun setValue(value: String?, exm: ExpressionMediator) = guard { evalArgs(exm); identifier.setValue(value, transporter) }
+    /**
+     * 配列の範囲外アクセス: PC 版 Emuera はエラーで止まるが、Android 版では
+     * 読み取りは 0/空文字、書き込みは無視して続行する (Config.LenientArrayAccess)
+     */
+    protected inline fun <T> lenient(default: T, block: () -> T): T {
+        try {
+            return guard(block)
+        } catch (e: ArrayRangeCodeEE) {
+            if (!Config.LenientArrayAccess) throw e
+            return default
+        }
+    }
+
+    override fun getIntValue(exm: ExpressionMediator): Long = lenient(0L) { evalArgs(exm); identifier.getIntValue(exm, transporter) }
+    override fun getStrValue(exm: ExpressionMediator): String = lenient("") { evalArgs(exm); identifier.getStrValue(exm, transporter) ?: "" }
+    open fun setValue(value: Long, exm: ExpressionMediator) = lenient(Unit) { evalArgs(exm); identifier.setValue(value, transporter) }
+    open fun setValue(value: String?, exm: ExpressionMediator) = lenient(Unit) { evalArgs(exm); identifier.setValue(value, transporter) }
 
     open fun setValues(array: LongArray, exm: ExpressionMediator) {
         try {
@@ -71,7 +86,7 @@ open class VariableTerm protected constructor(token: VariableToken, private val 
         }
     }
 
-    open fun plusValue(value: Long, exm: ExpressionMediator): Long = guard { evalArgs(exm); identifier.plusValue(value, transporter) }
+    open fun plusValue(value: Long, exm: ExpressionMediator): Long = lenient(0L) { evalArgs(exm); identifier.plusValue(value, transporter) }
 
     override fun getValue(exm: ExpressionMediator): SingleTerm =
         if (identifier.variableType == EType.Int64) SingleTerm(getIntValue(exm)) else SingleTerm(getStrValue(exm))
@@ -115,7 +130,15 @@ open class VariableTerm protected constructor(token: VariableToken, private val 
                 transporter[i] = arguments[i]!!.getIntValue(exm)
             }
         }
-        if (!identifier.isReference) identifier.checkElement(transporter, padCheck(canCheck))
+        if (!identifier.isReference) {
+            try {
+                identifier.checkElement(transporter, padCheck(canCheck))
+            } catch (e: ArrayRangeCodeEE) {
+                // 定数の添字が範囲外: Android 版では実行時に 0/空文字として扱う
+                if (!Config.LenientArrayAccess) throw e
+                return this
+            }
+        }
         if (identifier.canRestructure && allArgIsConst) return getValue(exm)
         else if (allArgIsConst) return FixedVariableTerm(identifier, transporter)
         return this
@@ -152,11 +175,11 @@ class FixedVariableTerm(token: VariableToken, args: LongArray? = null) : Variabl
     var index2: Long get() = transporter[1]; set(v) { transporter[1] = v }
     var index3: Long get() = transporter[2]; set(v) { transporter[2] = v }
 
-    override fun getIntValue(exm: ExpressionMediator): Long = guard { identifier.getIntValue(exm, transporter) }
-    override fun getStrValue(exm: ExpressionMediator): String = guard { identifier.getStrValue(exm, transporter) ?: "" }
-    override fun setValue(value: Long, exm: ExpressionMediator) = guard { identifier.setValue(value, transporter) }
-    override fun setValue(value: String?, exm: ExpressionMediator) = guard { identifier.setValue(value, transporter) }
-    override fun plusValue(value: Long, exm: ExpressionMediator): Long = guard { identifier.plusValue(value, transporter) }
+    override fun getIntValue(exm: ExpressionMediator): Long = lenient(0L) { identifier.getIntValue(exm, transporter) }
+    override fun getStrValue(exm: ExpressionMediator): String = lenient("") { identifier.getStrValue(exm, transporter) ?: "" }
+    override fun setValue(value: Long, exm: ExpressionMediator) = lenient(Unit) { identifier.setValue(value, transporter) }
+    override fun setValue(value: String?, exm: ExpressionMediator) = lenient(Unit) { identifier.setValue(value, transporter) }
+    override fun plusValue(value: Long, exm: ExpressionMediator): Long = lenient(0L) { identifier.plusValue(value, transporter) }
     override fun restructure(exm: ExpressionMediator): IOperandTerm = if (identifier.canRestructure) getValue(exm) else this
     override fun getFixedVariableTerm(exm: ExpressionMediator): FixedVariableTerm {
         val fp = FixedVariableTerm(identifier)

@@ -5,6 +5,7 @@ import com.eraandroid.emuera.config.Config
 import com.eraandroid.emuera.gamedata.expression.EType
 import com.eraandroid.emuera.gamedata.expression.ExpressionMediator
 import com.eraandroid.emuera.gameproc.UserDefinedVariableData
+import com.eraandroid.emuera.sub.ArrayRangeCodeEE
 import com.eraandroid.emuera.sub.CodeEE
 
 /**
@@ -137,14 +138,14 @@ abstract class ArrayVariableToken protected constructor(code: Int, varData: Vari
         val a = arr()
         for (d in 0 until dimension) {
             if (d < doCheck.size && doCheck[d] && (arguments[d] < 0 || arguments[d] >= EraArrays.length(a, d)))
-                throw CodeEE("$rangeLabel${varName}の第${ordinals[d]}引数(${arguments[d]})は配列の範囲外です")
+                throw ArrayRangeCodeEE("$rangeLabel${varName}の第${ordinals[d]}引数(${arguments[d]})は配列の範囲外です")
         }
     }
     override fun isArrayRangeValid(arguments: LongArray, index1: Long, index2: Long, funcName: String, i1: Long, i2: Long) {
         checkElement(arguments)
         val len = EraArrays.length(arr(), dimension - 1)
-        if (index1 < 0 || index1 > len) throw CodeEE("${funcName}命令の第${i1}引数(${index1})は配列${varName}の範囲外です")
-        if (index2 < 0 || index2 > len) throw CodeEE("${funcName}命令の第${i2}引数(${index2})は配列${varName}の範囲外です")
+        if (index1 < 0 || index1 > len) throw ArrayRangeCodeEE("${funcName}命令の第${i1}引数(${index1})は配列${varName}の範囲外です")
+        if (index2 < 0 || index2 > len) throw ArrayRangeCodeEE("${funcName}命令の第${i2}引数(${index2})は配列${varName}の範囲外です")
     }
 }
 
@@ -208,17 +209,17 @@ abstract class CharaVariableToken protected constructor(code: Int, varData: Vari
     override fun checkElement(arguments: LongArray, doCheck: BooleanArray) {
         val s = sizes ?: IntArray(0)
         if (doCheck[0] && (arguments[0] < 0 || arguments[0] >= vd.characterList.size))
-            throw CodeEE("キャラクタ配列変数${varName}の第１引数(${arguments[0]})はキャラ登録番号の範囲外です")
+            throw ArrayRangeCodeEE("キャラクタ配列変数${varName}の第１引数(${arguments[0]})はキャラ登録番号の範囲外です")
         if (doCheck.size > 1 && s.isNotEmpty() && doCheck[1] && (arguments[1] < 0 || arguments[1] >= s[0]))
-            throw CodeEE("キャラクタ配列変数${varName}の第２引数(${arguments[1]})は配列の範囲外です")
+            throw ArrayRangeCodeEE("キャラクタ配列変数${varName}の第２引数(${arguments[1]})は配列の範囲外です")
         if (doCheck.size > 2 && s.size > 1 && doCheck[2] && (arguments[2] < 0 || arguments[2] >= s[1]))
-            throw CodeEE("キャラクタ配列変数${varName}の第３引数(${arguments[2]})は配列の範囲外です")
+            throw ArrayRangeCodeEE("キャラクタ配列変数${varName}の第３引数(${arguments[2]})は配列の範囲外です")
     }
     override fun isArrayRangeValid(arguments: LongArray, index1: Long, index2: Long, funcName: String, i1: Long, i2: Long) {
         checkElement(arguments)
         val s0 = sizes!![0]
-        if (index1 < 0 || index1 > s0) throw CodeEE("${funcName}命令の第${i1}引数(${index1})は配列${varName}の範囲外です")
-        if (index2 < 0 || index2 > s0) throw CodeEE("${funcName}命令の第${i2}引数(${index2})は配列${varName}の範囲外です")
+        if (index1 < 0 || index1 > s0) throw ArrayRangeCodeEE("${funcName}命令の第${i1}引数(${index1})は配列${varName}の範囲外です")
+        if (index2 < 0 || index2 > s0) throw ArrayRangeCodeEE("${funcName}命令の第${i2}引数(${index2})は配列${varName}の範囲外です")
     }
 
     /** array dimension excluding the character index */
@@ -319,12 +320,12 @@ class Int1DConstantToken(code: Int, varData: VariableData, private val array: Lo
     override fun getArray(): Any = array
     override fun checkElement(arguments: LongArray, doCheck: BooleanArray) {
         if (doCheck[0] && (arguments[0] < 0 || arguments[0] >= array.size))
-            throw CodeEE("配列変数${varName}の第１引数(${arguments[0]})は配列の範囲外です")
+            throw ArrayRangeCodeEE("配列変数${varName}の第１引数(${arguments[0]})は配列の範囲外です")
     }
     override fun isArrayRangeValid(arguments: LongArray, index1: Long, index2: Long, funcName: String, i1: Long, i2: Long) {
         checkElement(arguments)
-        if (index1 < 0 || index1 > array.size) throw CodeEE("${funcName}命令の第${i1}引数(${index1})は配列${varName}の範囲外です")
-        if (index2 < 0 || index2 > array.size) throw CodeEE("${funcName}命令の第${i2}引数(${index2})は配列${varName}の範囲外です")
+        if (index1 < 0 || index1 > array.size) throw ArrayRangeCodeEE("${funcName}命令の第${i1}引数(${index1})は配列${varName}の範囲外です")
+        if (index2 < 0 || index2 > array.size) throw ArrayRangeCodeEE("${funcName}命令の第${i2}引数(${index2})は配列${varName}の範囲外です")
     }
 }
 
@@ -340,12 +341,12 @@ class Str1DConstantToken(code: Int, varData: VariableData, private val array: Ar
     override fun getArray(): Any = array
     override fun checkElement(arguments: LongArray, doCheck: BooleanArray) {
         if (doCheck[0] && (arguments[0] < 0 || arguments[0] >= array.size))
-            throw CodeEE("配列変数${varName}の第１引数(${arguments[0]})は配列の範囲外です")
+            throw ArrayRangeCodeEE("配列変数${varName}の第１引数(${arguments[0]})は配列の範囲外です")
     }
     override fun isArrayRangeValid(arguments: LongArray, index1: Long, index2: Long, funcName: String, i1: Long, i2: Long) {
         checkElement(arguments)
-        if (index1 < 0 || index1 > array.size) throw CodeEE("${funcName}命令の第${i1}引数(${index1})は配列${varName}の範囲外です")
-        if (index2 < 0 || index2 > array.size) throw CodeEE("${funcName}命令の第${i2}引数(${index2})は配列${varName}の範囲外です")
+        if (index1 < 0 || index1 > array.size) throw ArrayRangeCodeEE("${funcName}命令の第${i1}引数(${index1})は配列${varName}の範囲外です")
+        if (index2 < 0 || index2 > array.size) throw ArrayRangeCodeEE("${funcName}命令の第${i2}引数(${index2})は配列${varName}の範囲外です")
     }
 }
 
@@ -398,12 +399,12 @@ abstract class LocalVariableToken(code: Int, varData: VariableData, protected va
     }
     override fun checkElement(arguments: LongArray, doCheck: BooleanArray) {
         if (doCheck[0] && (arguments[0] < 0 || arguments[0] >= size))
-            throw CodeEE("配列変数${varName}の第１引数(${arguments[0]})は配列の範囲外です")
+            throw ArrayRangeCodeEE("配列変数${varName}の第１引数(${arguments[0]})は配列の範囲外です")
     }
     override fun isArrayRangeValid(arguments: LongArray, index1: Long, index2: Long, funcName: String, i1: Long, i2: Long) {
         checkElement(arguments)
-        if (index1 < 0 || index1 > size) throw CodeEE("${funcName}命令の第${i1}引数(${index1})は配列${varName}の範囲外です")
-        if (index2 < 0 || index2 > size) throw CodeEE("${funcName}命令の第${i2}引数(${index2})は配列${varName}の範囲外です")
+        if (index1 < 0 || index1 > size) throw ArrayRangeCodeEE("${funcName}命令の第${i1}引数(${index1})は配列${varName}の範囲外です")
+        if (index2 < 0 || index2 > size) throw ArrayRangeCodeEE("${funcName}命令の第${i2}引数(${index2})は配列${varName}の範囲外です")
     }
 }
 
@@ -455,17 +456,17 @@ abstract class UserDefinedVariableToken protected constructor(code: Int, data: U
     }
     override fun checkElement(arguments: LongArray, doCheck: BooleanArray) {
         if (doCheck[0] && (arguments[0] < 0 || arguments[0] >= sizes[0]))
-            throw CodeEE("配列型変数${varName}の第１引数(${arguments[0]})は配列の範囲外です")
+            throw ArrayRangeCodeEE("配列型変数${varName}の第１引数(${arguments[0]})は配列の範囲外です")
         if (sizes.size >= 2 && (arguments[1] < 0 || arguments[1] >= sizes[1]))
-            throw CodeEE("配列型変数${varName}の第２引数(${arguments[1]})は配列の範囲外です")
+            throw ArrayRangeCodeEE("配列型変数${varName}の第２引数(${arguments[1]})は配列の範囲外です")
         if (sizes.size >= 3 && (arguments[2] < 0 || arguments[2] >= sizes[2]))
-            throw CodeEE("配列型変数${varName}の第３引数(${arguments[2]})は配列の範囲外です")
+            throw ArrayRangeCodeEE("配列型変数${varName}の第３引数(${arguments[2]})は配列の範囲外です")
     }
     override fun isArrayRangeValid(arguments: LongArray, index1: Long, index2: Long, funcName: String, i1: Long, i2: Long) {
         checkElement(arguments)
         val len = sizes[dimension - 1]
-        if (index1 < 0 || index1 > len) throw CodeEE("${funcName}命令の第${i1}引数(${index1})は配列${varName}の範囲外です")
-        if (index2 < 0 || index2 > len) throw CodeEE("${funcName}命令の第${i2}引数(${index2})は配列${varName}の範囲外です")
+        if (index1 < 0 || index1 > len) throw ArrayRangeCodeEE("${funcName}命令の第${i1}引数(${index1})は配列${varName}の範囲外です")
+        if (index2 < 0 || index2 > len) throw ArrayRangeCodeEE("${funcName}命令の第${i2}引数(${index2})は配列${varName}の範囲外です")
     }
 
     protected fun newArray(): Any {
@@ -559,17 +560,17 @@ class ReferenceToken(code: Int, data: UserDefinedVariableData) : UserDefinedVari
     override fun checkElement(arguments: LongArray, doCheck: BooleanArray) {
         val a = array ?: noRef()
         if (doCheck[0] && (arguments[0] < 0 || arguments[0] >= EraArrays.length(a, 0)))
-            throw CodeEE("配列型変数${varName}の第１引数(${arguments[0]})は配列の範囲外です")
+            throw ArrayRangeCodeEE("配列型変数${varName}の第１引数(${arguments[0]})は配列の範囲外です")
         if (dimension >= 2 && (arguments[1] < 0 || arguments[1] >= EraArrays.length(a, 1)))
-            throw CodeEE("配列型変数${varName}の第２引数(${arguments[1]})は配列の範囲外です")
+            throw ArrayRangeCodeEE("配列型変数${varName}の第２引数(${arguments[1]})は配列の範囲外です")
         if (dimension >= 3 && (arguments[2] < 0 || arguments[2] >= EraArrays.length(a, 2)))
-            throw CodeEE("配列型変数${varName}の第３引数(${arguments[2]})は配列の範囲外です")
+            throw ArrayRangeCodeEE("配列型変数${varName}の第３引数(${arguments[2]})は配列の範囲外です")
     }
     override fun isArrayRangeValid(arguments: LongArray, index1: Long, index2: Long, funcName: String, i1: Long, i2: Long) {
         checkElement(arguments)
         val len = EraArrays.length(array!!, dimension - 1)
-        if (index1 < 0 || index1 > len) throw CodeEE("${funcName}命令の第${i1}引数(${index1})は配列${varName}の範囲外です")
-        if (index2 < 0 || index2 > len) throw CodeEE("${funcName}命令の第${i2}引数(${index2})は配列${varName}の範囲外です")
+        if (index1 < 0 || index1 > len) throw ArrayRangeCodeEE("${funcName}命令の第${i1}引数(${index1})は配列${varName}の範囲外です")
+        if (index2 < 0 || index2 > len) throw ArrayRangeCodeEE("${funcName}命令の第${i2}引数(${index2})は配列${varName}の範囲外です")
     }
 
     override fun `in`() {

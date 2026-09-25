@@ -158,8 +158,8 @@ object Config {
 
         DrawingParam_ShapePositionShift = maxOf(2, FontSize / 6)
         applyScreenOverride()
-        ForceSavDir = Program.ExeDir + "sav/"
-        SavDir = if (UseSaveFolder) Program.ExeDir + "sav/" else Program.ExeDir
+        ForceSavDir = Program.ExeDir + Program.sub(Program.ExeDir, "sav") + "/"
+        SavDir = if (UseSaveFolder) ForceSavDir else Program.ExeDir
         if (UseSaveFolder) File(SavDir).mkdirs()
 
         // ReduceArgumentOnLoad
@@ -174,6 +174,12 @@ object Config {
         try { Charset.forName(name) } catch (e: Exception) { try { Charset.forName(fallback) } catch (e2: Exception) { Charsets.UTF_8 } }
 
     // ── Android 版: 画面幅に合わせた上書き (UI の文字数に合わせる) ──
+    /** 配列の範囲外の読み取りを 0/空文字に、書き込みを無視にして続行する (Android 版の拡張) */
+    @JvmStatic var LenientArrayAccess = true
+
+    /** Android の列表示: PRINTC を個数で並べる (setScreenOverride で有効) */
+    @JvmStatic var printCGrid = false
+        private set
     private var overrideCols = 0
     private var overridePrintCPerLine = 0
     private var overridePrintCLength = 0
@@ -183,6 +189,7 @@ object Config {
         overrideCols = cols
         overridePrintCPerLine = printCPerLine
         overridePrintCLength = printCLength
+        printCGrid = cols > 0
         applyScreenOverride()
     }
 

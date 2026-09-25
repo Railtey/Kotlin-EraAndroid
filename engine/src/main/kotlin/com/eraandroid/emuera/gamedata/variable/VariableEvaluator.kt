@@ -72,7 +72,7 @@ class VariableEvaluator(private val gamebase: GameBase, val constant: ConstantDa
         if (p.identifier.isArray1D) {
             indexNum = if (index.getOperandType() == EType.Int64) index.int else constant.keywordToInteger(p.identifier.code, index.str, 1).toLong()
             if (indexNum < 0 || indexNum >= (p.identifier.getArrayChara(0) as LongArray).size)
-                throw CodeEE("キャラクタ配列変数${p.identifier.name}の第２引数(${indexNum})は配列の範囲外です")
+                throw ArrayRangeCodeEE("キャラクタ配列変数${p.identifier.name}の第２引数(${indexNum})は配列の範囲外です")
         }
         for (i in start until end) p.identifier.setValue(srcValue, longArrayOf(i.toLong(), indexNum))
     }
@@ -90,7 +90,7 @@ class VariableEvaluator(private val gamebase: GameBase, val constant: ConstantDa
         if (p.identifier.isArray1D) {
             indexNum = if (index.getOperandType() == EType.Int64) index.int else constant.keywordToInteger(p.identifier.code, index.str, 1).toLong()
             if (indexNum < 0 || indexNum >= (p.identifier.getArrayChara(0) as Array<String?>).size)
-                throw CodeEE("キャラクタ配列変数${p.identifier.name}の第２引数(${indexNum})は配列の範囲外です")
+                throw ArrayRangeCodeEE("キャラクタ配列変数${p.identifier.name}の第２引数(${indexNum})は配列の範囲外です")
         }
         for (i in start until end) p.identifier.setValue(srcValue, longArrayOf(i.toLong(), indexNum))
     }

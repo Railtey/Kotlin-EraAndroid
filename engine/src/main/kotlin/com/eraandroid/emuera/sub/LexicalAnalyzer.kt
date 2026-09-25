@@ -61,7 +61,7 @@ object LexicalAnalyzer {
             val d = significand * Math.pow(expBase.toDouble(), exponent.toDouble())
             if (d.isNaN() || d.isInfinite() || d > Long.MAX_VALUE || d < Long.MIN_VALUE)
                 throw CodeEE("\"" + st.substring(stStartPos, stEndPos) + "\"は64ビット符号付整数の範囲を超えています")
-            significand = d.toLong()
+            significand = d.toLongDotNet()
         }
         return significand
     }
