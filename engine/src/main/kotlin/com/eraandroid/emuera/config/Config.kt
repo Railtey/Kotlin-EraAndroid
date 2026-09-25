@@ -224,7 +224,14 @@ object Config {
             val ext = pattern.substring(1)
             return name.endsWith(ext, ignoreCase = true)
         }
-        val regex = Regex("^" + Regex.escape(pattern).replace("\\*", ".*").replace("\\?", ".") + "$", RegexOption.IGNORE_CASE)
+        val sb = StringBuilder("^")
+        for (ch in pattern) when (ch) {
+            '*' -> sb.append(".*")
+            '?' -> sb.append('.')
+            else -> sb.append(Regex.escape(ch.toString()))
+        }
+        sb.append('$')
+        val regex = Regex(sb.toString(), RegexOption.IGNORE_CASE)
         return regex.matches(name)
     }
 
