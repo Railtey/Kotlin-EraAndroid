@@ -1,0 +1,93 @@
+name: Build & Release
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Decode release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "RELEASE_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          else
+            echo "::warning::RELEASE_KEYSTORE_BASE64 시크릿이 없어 디버그 키로 서명합니다."
+          fi
+
+      - name: Build release APK
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+
+      # 0.1 릴리즈와 같은 키로 서명됐는지 확인 (다르면 기존 설치본이 업데이트되지 않음)
+      - name: Verify signing certificate
+        env:
+          EXPECTED_CERT_SHA256: 5fb434bf14f7bca0d7efbe5d600cd0a12bfaf74a87964f497fe75afcd940ebc1
+        run: |
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk | tee certs.txt
+          if grep -qi "SHA-256 digest: $EXPECTED_CERT_SHA256" certs.txt; then
+            echo "서명 키가 0.1 릴리즈와 일치합니다."
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "::error::서명 키가 0.1 릴리즈와 다릅니다. 릴리즈를 만들지 않습니다."
+            exit 1
+          else
+            echo "::warning::서명 키가 0.1 릴리즈와 다릅니다."
+          fi
+
+      - name: Read version
+        id: version
+        run: |
+          name=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          cp app/build/outputs/apk/release/app-release.apk "EraAndroid-v$name.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EraAndroid-v${{ steps.version.outputs.name }}
+          path: EraAndroid-v${{ steps.version.outputs.name }}.apk
+
+      # main 브랜치에 올라왔고, 해당 버전의 릴리즈가 아직 없을 때만 릴리즈 생성
+      - name: Create GitHub release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.name }}
+        run: |
+          tag="v$VERSION"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "릴리즈 $tag 가 이미 있어 건너뜁니다. 새 릴리즈를 만들려면 versionName을 올리세요."
+          else
+            # release-notes/<버전>.md 가 있으면 패치노트로 사용, 없으면 커밋 목록으로 자동 생성
+            notes_file="release-notes/$VERSION.md"
+            if [ -f "$notes_file" ]; then
+              notes=(--notes-file "$notes_file")
+            else
+              notes=(--generate-notes)
+            fi
+            gh release create "$tag" "EraAndroid-v$VERSION.apk" \
+              --title "EraAndroid $tag" "${notes[@]}" --target "$GITHUB_SHA"
+          fi
