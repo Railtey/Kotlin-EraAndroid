@@ -97,3 +97,7 @@ object DotNetFormat {
         return list
     }
 }
+
+/** C# の unchecked (Int64)double キャスト (x86/x64) と同じ: 範囲外と NaN は Int64.MinValue になる */
+fun Double.toLongDotNet(): Long =
+    if (this.isNaN() || this >= 9.223372036854775807E18 || this < -9.223372036854775808E18) Long.MIN_VALUE else this.toLong()

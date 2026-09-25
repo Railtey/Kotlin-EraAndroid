@@ -23,6 +23,7 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    for (k in listOf("playGame", "playInputs", "playOut")) System.getProperty(k)?.let { systemProperty(k, it) }
     System.getProperty("bigGame")?.let { systemProperty("bigGame", it) }
     jvmArgs("-Xss64m")
 }

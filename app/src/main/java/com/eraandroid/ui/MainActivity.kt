@@ -478,7 +478,8 @@ fun GameOutput(
 ) {
     val listState = rememberLazyListState()
 
-    LaunchedEffect(lines.size) {
+    // 로그가 최대 줄 수에 도달하면 줄 수가 더 늘지 않으므로 내용이 바뀔 때마다 맨 아래로
+    LaunchedEffect(lines) {
         if (lines.isNotEmpty()) listState.animateScrollToItem(lines.size - 1)
     }
 

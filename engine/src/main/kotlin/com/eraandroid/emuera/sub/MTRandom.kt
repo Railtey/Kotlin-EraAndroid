@@ -5,7 +5,7 @@ package com.eraandroid.emuera.sub
  * Port of Emuera's _Library/SFMT.cs, which is based on Rei HOBARA's C# SFMT library
  * (Copyright (C) Rei HOBARA 2007). SFMT by Mutsuo Saito and Makoto Matsumoto.
  */
-class MTRandom(seed: Long = System.currentTimeMillis()) {
+class MTRandom(seed: Long = fixedSeed ?: System.currentTimeMillis()) {
     private val sfmt = IntArray(N32)
     private var idx = 0
 
@@ -87,6 +87,8 @@ class MTRandom(seed: Long = System.currentTimeMillis()) {
     }
 
     companion object {
+        /** テスト用: 設定すると既定の種をこの値にする */
+        @JvmStatic var fixedSeed: Long? = null
         private const val MEXP = 19937
         private const val POS1 = 122
         private const val SL1 = 18

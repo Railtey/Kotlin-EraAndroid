@@ -37,13 +37,17 @@ object Program {
         var d = dir.replace('\\', '/')
         if (!d.endsWith("/")) d += "/"
         ExeDir = d
-        CsvDir = d + "csv/"
-        ErbDir = d + "erb/"
-        DebugDir = d + "debug/"
-        DatDir = d + "dat/"
-        ContentDir = d + "resources/"
+        // Android/Linux はパスの大文字小文字を区別するので、実在するフォルダ名を探す
+        CsvDir = d + sub(d, "csv") + "/"
+        ErbDir = d + sub(d, "erb") + "/"
+        DebugDir = d + sub(d, "debug") + "/"
+        DatDir = d + sub(d, "dat") + "/"
+        ContentDir = d + sub(d, "resources") + "/"
         StartTime = System.currentTimeMillis()
     }
+
+    fun sub(dir: String, name: String): String =
+        File(dir).listFiles()?.firstOrNull { it.isDirectory && it.name.equals(name, ignoreCase = true) }?.name ?: name
 
     val tickCount: Long get() = System.currentTimeMillis() - StartTime
 
