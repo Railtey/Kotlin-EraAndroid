@@ -67,6 +67,7 @@ class GameFlowTest {
         val dir = copyGame("gfx")
         val img = BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB)
         for (y in 0 until 32) for (x in 0 until 32) img.setRGB(x, y, 0xFF0000FF.toInt())
+        File(dir, "resources").mkdirs()
         ImageIO.write(img, "png", File(dir, "resources/face.png"))
         File(dir, "resources/img.csv").writeText("face,face.png\n")
         Platform.graphics = AwtGraphics()
