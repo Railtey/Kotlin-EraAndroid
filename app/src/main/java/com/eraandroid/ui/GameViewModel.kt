@@ -1,171 +1,400 @@
 package com.eraandroid.ui
 
 import android.app.Application
-import android.content.Context
+import android.graphics.Bitmap
+import android.os.Environment
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.AndroidViewModel
 import com.eraandroid.emu.AndroidGraphics
 import com.eraandroid.emuera.EmueraEngine
+import com.eraandroid.emuera.Program
 import com.eraandroid.emuera.config.Config
+import com.eraandroid.emuera.content.SpriteDrawCommand
 import com.eraandroid.emuera.gameproc.InputType
+import com.eraandroid.emuera.gameview.AConsoleColoredPart
 import com.eraandroid.emuera.gameview.ConsoleButtonString
+import com.eraandroid.emuera.gameview.ConsoleCanvas
+import com.eraandroid.emuera.gameview.ConsoleDisplayLine
 import com.eraandroid.emuera.gameview.ConsoleHost
+import com.eraandroid.emuera.gameview.ConsoleImagePart
+import com.eraandroid.emuera.gameview.ConsoleSpacePart
 import com.eraandroid.emuera.gameview.ConsoleState
+import com.eraandroid.emuera.gameview.ConsoleStyledString
+import com.eraandroid.emuera.gameview.DisplayLineAlignment
 import com.eraandroid.emuera.gameview.EmueraConsole
+import com.eraandroid.emuera.gameview.FontStyle
+import com.eraandroid.emuera.platform.EFont
+import com.eraandroid.emuera.platform.ERect
 import com.eraandroid.emuera.platform.Platform
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.*
 import java.io.File
+import java.util.WeakHashMap
 
-/** 입력창을 어떻게 보여줄지 */
-enum class InputMode { NONE, ENTER, INT, STR, PRIMITIVE }
-
-data class GameUiState(
-    val gameDir: String? = null,
-    val title: String = "EraAndroid",
-    val loading: String? = null,
-    val inputMode: InputMode = InputMode.NONE,
-    val oneInput: Boolean = false,
-    val defaultValue: String? = null,
-    val error: Boolean = false,
-    val redrawInterval: Long = 0,
+// ─── UI State ─────────────────────────────────────────────────────────────────
+data class TextLine(
+    val spans: List<TextSpan>,
+    val alignment: TextAlignment = TextAlignment.LEFT
 )
 
-class GameViewModel(application: Application) : AndroidViewModel(application) {
-    private val _ui = MutableStateFlow(GameUiState())
-    val ui: StateFlow<GameUiState> = _ui.asStateFlow()
+data class TextSpan(
+    val text: String,
+    val color: Int = 0xFFFFFFFF.toInt(),
+    val isBold: Boolean = false,
+    val isItalic: Boolean = false,
+    val isButton: Boolean = false,
+    val buttonValue: Long = 0L,
+    /** PRINT_IMG / HTML <img> 로 출력된 이미지 (없으면 null) */
+    val image: ImageBitmap? = null,
+    /** 이미지 크기 (글자 크기 배수) */
+    val imageWidthEm: Float = 0f,
+    val imageHeightEm: Float = 0f,
+)
 
-    /** 화면을 다시 그려야 할 때마다 1씩 증가 */
-    private val _frame = MutableStateFlow(0L)
-    val frame: StateFlow<Long> = _frame.asStateFlow()
+enum class TextAlignment { LEFT, CENTER, RIGHT }
+
+data class GameUiState(
+    val lines: List<TextLine> = emptyList(),
+    val isWaitingInput: Boolean = false,
+    val inputIsNumber: Boolean = true,
+    val isWaitAnyKey: Boolean = false,
+    val activeInputLineIndex: Int = 0,  // 이 줄 이전의 버튼은 클릭 불가 (Emuera 의 버튼 세대)
+    val bgColor: Int = 0xFF000000.toInt(),
+    val currentColor: Int = 0xFFFFFFFF.toInt(),
+    val alignment: TextAlignment = TextAlignment.LEFT,
+    val statusMessage: String = "",
+    val isLoading: Boolean = false,
+    val loadingStatus: String = "",
+    val errorMessage: String? = null
+)
+
+data class SaveSlotInfo(val slot: Int, val exists: Boolean, val comment: String)
+
+// ─── ViewModel ────────────────────────────────────────────────────────────────
+class GameViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val _uiState = MutableStateFlow(GameUiState())
+    val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
+    var drawLineWidth: Int = 40
+
+    // drawLineWidth 실측 후 호출 — 엔진의 줄 너비와 PRINTC 열 수/너비를 화면에 맞게 설정
+    fun applyPrintcLayout() {
+        val totalCols = drawLineWidth.coerceIn(20, 200)
+        val cols = when {
+            totalCols >= 130 -> 4
+            totalCols >= 80  -> 3
+            totalCols >= 40  -> 2
+            else             -> 1
+        }
+        val width = totalCols / cols
+        android.util.Log.d("ERA_PRINTC", "applyPrintcLayout: drawLineWidth=$drawLineWidth cols=$cols width=$width")
+        val apply = { Config.setScreenOverride(totalCols, cols, width) }
+        val e = engine
+        if (e != null) e.post { apply() } else apply()
+    }
+
+    private val _saveSlots = MutableStateFlow<List<SaveSlotInfo>>(emptyList())
+    val saveSlots: StateFlow<List<SaveSlotInfo>> = _saveSlots.asStateFlow()
 
     private var engine: EmueraEngine? = null
-    val console: EmueraConsole? get() = engine?.console
+    private var gameDir: String? = null
 
-    /** 화면 크기 (Emuera 가상 픽셀) — UI 가 갱신 */
-    @Volatile var virtualHeight: Int = 480
+    /** 화면 청소: 이 줄 번호 이전은 숨긴다 */
+    @Volatile private var hiddenLineCount = 0
+    @Volatile private var lastLineCount = 0
 
-    private val prefs = application.getSharedPreferences("era", Context.MODE_PRIVATE)
-
-    val recentGames: List<String>
-        get() = (prefs.getString("recent", "") ?: "").split('\n').filter { it.isNotBlank() }
-
-    private fun addRecent(dir: String) {
-        val list = listOf(dir) + recentGames.filter { it != dir }
-        prefs.edit().putString("recent", list.take(8).joinToString("\n")).apply()
-    }
-
-    fun removeRecent(dir: String) {
-        prefs.edit().putString("recent", recentGames.filter { it != dir }.joinToString("\n")).apply()
-    }
+    // ─── 엔진 → UI ────────────────────────────────────────────────────────────
 
     private val host = object : ConsoleHost {
+        private var lastPublish = 0L
+
         override fun requestRedraw() {
-            updateInputState()
-            _frame.value = _frame.value + 1
+            val c = engine?.console ?: return
+            // 스크립트 실행 중에는 너무 자주 갱신하지 않는다
+            val now = System.currentTimeMillis()
+            if (c.consoleState == ConsoleState.Running && now - lastPublish < 50) return
+            lastPublish = now
+            publish(c)
         }
 
         override fun setWindowTitle(title: String) {
-            _ui.value = _ui.value.copy(title = title)
+            _uiState.update { it.copy(statusMessage = title) }
         }
 
         override fun closeGame() {
-            stopGame()
+            android.os.Handler(android.os.Looper.getMainLooper()).post { goToMain() }
         }
 
         override fun reboot() {
-            val dir = _ui.value.gameDir ?: return
-            android.os.Handler(android.os.Looper.getMainLooper()).post { startGame(dir) }
+            val dir = gameDir ?: return
+            android.os.Handler(android.os.Looper.getMainLooper()).post { startEngine(dir) }
         }
 
         override val clientWidth: Int get() = Config.WindowX
-        override val clientHeight: Int get() = virtualHeight
+        override val clientHeight: Int get() = 480
         override val isActive: Boolean get() = true
 
         override fun reportLoadProgress(text: String) {
-            _ui.value = _ui.value.copy(loading = text)
+            _uiState.update { it.copy(loadingStatus = text) }
         }
     }
 
-    /** 엔진 스레드에서 호출: 입력 대기 상태를 UI 상태로 옮긴다 */
-    private fun updateInputState() {
-        val c = engine?.console ?: return
-        val req = c.currentInputRequest
-        val mode = when {
-            c.consoleState == ConsoleState.Error || c.consoleState == ConsoleState.Quit -> InputMode.ENTER
-            req == null -> InputMode.NONE
-            req.inputType == InputType.IntValue -> InputMode.INT
-            req.inputType == InputType.StrValue -> InputMode.STR
-            req.inputType == InputType.PrimitiveMouseKey -> InputMode.PRIMITIVE
-            req.inputType == InputType.Void -> InputMode.NONE
-            else -> InputMode.ENTER
+    /** 엔진 스레드에서 호출: 콘솔 내용을 UI 의 TextLine 목록으로 바꿔서 내보낸다 */
+    private fun publish(c: EmueraConsole) {
+        val snap = c.snapshot()
+        val all = snap.lines
+        if (all.size < lastLineCount) hiddenLineCount = 0 // CLEARLINE 등으로 줄었으면 청소 해제
+        lastLineCount = all.size
+        val start = hiddenLineCount.coerceIn(0, all.size)
+        val bar = c.getDefStBar()
+        val lines = ArrayList<TextLine>(all.size - start)
+        var activeIndex = -1
+        for (i in start until all.size) {
+            val line = all[i]
+            lines.add(convert(line, bar))
+            if (activeIndex < 0 && line.buttons.any { it.isButton && c.canSelect(it) }) activeIndex = i - start
         }
-        val def = if (req != null && req.hasDefValue) {
-            if (req.inputType == InputType.IntValue) req.defIntValue.toString() else req.defStrValue
-        } else null
-        _ui.value = _ui.value.copy(
-            inputMode = mode,
-            oneInput = req?.oneInput == true,
-            defaultValue = def,
-            error = c.consoleState == ConsoleState.Error,
-            loading = if (c.consoleState == ConsoleState.Initializing) _ui.value.loading else null,
-            redrawInterval = c.redrawInterval,
+        val req = c.currentInputRequest
+        val state = c.consoleState
+        val waitingValue = req != null && (req.inputType == InputType.IntValue || req.inputType == InputType.StrValue)
+        val waitingKey = state == ConsoleState.Error || state == ConsoleState.Quit ||
+            (req != null && (req.inputType == InputType.EnterKey || req.inputType == InputType.AnyKey || req.inputType == InputType.PrimitiveMouseKey))
+        _uiState.update {
+            it.copy(
+                lines = lines,
+                isWaitingInput = waitingValue,
+                inputIsNumber = req?.inputType == InputType.IntValue,
+                isWaitAnyKey = waitingKey,
+                activeInputLineIndex = if (activeIndex >= 0) activeIndex else lines.size,
+                bgColor = snap.bgColor.argb,
+                currentColor = Config.ForeColor.argb,
+                isLoading = state == ConsoleState.Initializing,
+                loadingStatus = if (state == ConsoleState.Initializing) it.loadingStatus else "",
+            )
+        }
+    }
+
+    private class Cached(val buttons: Array<ConsoleButtonString>, val line: TextLine)
+    private val lineCache = WeakHashMap<ConsoleDisplayLine, Cached>()
+
+    private fun convert(line: ConsoleDisplayLine, bar: String?): TextLine {
+        val cached = lineCache[line]
+        if (cached != null && cached.buttons === line.buttons) return cached.line
+        val text = line.toString()
+        val result = if (bar != null && text.isNotEmpty() && text == bar && line.buttons.none { it.isButton }) {
+            TextLine(listOf(TextSpan("__DRAWLINE__", 0xFF888888.toInt())), TextAlignment.LEFT)
+        } else {
+            val spans = ArrayList<TextSpan>()
+            for (b in line.buttons) {
+                val value = if (b.isButton) (if (b.isInteger) b.input else buttonIdFor(b)) else 0L
+                for (part in b.strArray) convertPart(part, b.isButton, value)?.let { spans.add(it) }
+            }
+            val align = when (line.align) {
+                DisplayLineAlignment.CENTER -> TextAlignment.CENTER
+                DisplayLineAlignment.RIGHT -> TextAlignment.RIGHT
+                else -> TextAlignment.LEFT
+            }
+            TextLine(spans, align)
+        }
+        lineCache[line] = Cached(line.buttons, result)
+        return result
+    }
+
+    private fun convertPart(part: Any, isButton: Boolean, value: Long): TextSpan? {
+        return when (part) {
+            is ConsoleStyledString -> {
+                val style = part.stringStyle.fontStyle
+                TextSpan(
+                    part.str, part.color.argb,
+                    isBold = style and FontStyle.Bold != 0,
+                    isItalic = style and FontStyle.Italic != 0,
+                    isButton = isButton, buttonValue = value,
+                )
+            }
+            is ConsoleImagePart -> imageSpan(part, isButton, value)
+            is ConsoleSpacePart -> {
+                val n = (part.width / maxOf(1, Config.FontSize / 2)).coerceIn(0, 400)
+                TextSpan(" ".repeat(n), isButton = isButton, buttonValue = value)
+            }
+            is AConsoleColoredPart -> null // 도형(PRINT_RECT 등)은 목록 화면에서는 생략
+            else -> null
+        }
+    }
+
+    /** 이미지 부분을 그려서 비트맵으로 만든다 */
+    private fun imageSpan(part: ConsoleImagePart, isButton: Boolean, value: Long): TextSpan {
+        var captured: SpriteDrawCommand? = null
+        part.drawTo(object : ConsoleCanvas {
+            override fun drawText(text: String, x: Int, y: Int, font: EFont, argb: Int) {}
+            override fun fillRect(rect: ERect, argb: Int) {}
+            override fun drawSprite(cmd: SpriteDrawCommand) { captured = cmd }
+        }, 0, false, false)
+        val c = captured ?: return TextSpan(part.toString(), isButton = isButton, buttonValue = value)
+        val r = c.raster
+        val sx = minOf(c.src.x, c.src.x + c.src.width).coerceIn(0, r.width)
+        val sy = minOf(c.src.y, c.src.y + c.src.height).coerceIn(0, r.height)
+        val sw = kotlin.math.abs(c.src.width).coerceAtMost(r.width - sx)
+        val sh = kotlin.math.abs(c.src.height).coerceAtMost(r.height - sy)
+        if (sw <= 0 || sh <= 0) return TextSpan(part.toString(), isButton = isButton, buttonValue = value)
+        val bmp = Bitmap.createBitmap(r.pixels, sy * r.width + sx, r.width, sw, sh, Bitmap.Config.ARGB_8888)
+        val fs = Config.FontSize.toFloat()
+        return TextSpan(
+            "", isButton = isButton, buttonValue = value,
+            image = bmp.asImageBitmap(),
+            imageWidthEm = kotlin.math.abs(c.dest.width) / fs,
+            imageHeightEm = kotlin.math.abs(c.dest.height) / fs,
         )
     }
 
-    fun startGame(dir: String) {
-        stopEngine()
+    // 문자열 값 버튼 (PRINTBUTTON "..", "문자열") 은 숫자 대신 가상의 번호로 구분한다
+    private val stringButtonIds = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private val stringButtonValues = java.util.concurrent.ConcurrentHashMap<Long, String>()
+    private fun buttonIdFor(b: ConsoleButtonString): Long {
+        val s = b.inputs ?: ""
+        return stringButtonIds.getOrPut(s) {
+            val id = Long.MIN_VALUE + stringButtonIds.size
+            stringButtonValues[id] = s
+            id
+        }
+    }
+
+    // ─── Game Loading ─────────────────────────────────────────────────────────
+
+    fun loadGame(gameDir: File) {
+        val root = findGameRoot(gameDir)
+        if (root == null) {
+            _uiState.update { it.copy(errorMessage = "CSV 폴더가 있는 게임 폴더를 선택해주세요.\n${gameDir.path}") }
+            return
+        }
+        startEngine(root.path)
+    }
+
+    fun loadGameFromDocumentUri(uri: android.net.Uri, context: android.content.Context) {
+        val path = realPathFromTreeUri(uri)
+        if (path == null || !File(path).isDirectory) {
+            _uiState.update { it.copy(errorMessage = "폴더를 열 수 없습니다. 내부 저장소의 폴더를 선택해주세요.") }
+            return
+        }
+        loadGame(File(path))
+    }
+
+    private fun realPathFromTreeUri(uri: android.net.Uri): String? = try {
+        val docId = android.provider.DocumentsContract.getTreeDocumentId(uri)
+        val parts = docId.split(":", limit = 2)
+        val rel = if (parts.size > 1) parts[1] else ""
+        val base = if (parts[0].equals("primary", true)) Environment.getExternalStorageDirectory().path else "/storage/${parts[0]}"
+        if (rel.isEmpty()) base else "$base/$rel"
+    } catch (e: Exception) {
+        null
+    }
+
+    /** 선택한 폴더 또는 그 바로 아래에서 CSV 폴더가 있는 곳을 찾는다 */
+    private fun findGameRoot(dir: File): File? {
+        fun isGame(d: File) = d.listFiles()?.any { it.isDirectory && it.name.equals("csv", true) } == true
+        if (isGame(dir)) return dir
+        return dir.listFiles()?.firstOrNull { it.isDirectory && isGame(it) }
+    }
+
+    private fun startEngine(dir: String) {
+        engine?.shutdown()
         Platform.graphics = AndroidGraphics()
-        addRecent(dir)
-        _ui.value = GameUiState(gameDir = dir, title = File(dir).name, loading = "Now Loading...")
+        gameDir = dir
+        hiddenLineCount = 0
+        lastLineCount = 0
+        lineCache.clear()
+        stringButtonIds.clear()
+        stringButtonValues.clear()
+        _uiState.value = GameUiState(isLoading = true, loadingStatus = "초기화 중...", statusMessage = File(dir).name)
         val e = EmueraEngine(dir, host)
         engine = e
+        applyPrintcLayout()
         e.start()
     }
 
-    private fun stopEngine() {
+    fun goToTitle() {
+        engine?.post { c ->
+            hiddenLineCount = 0
+            c.gotoTitle()
+        }
+    }
+
+    fun goToMain() {
         engine?.shutdown()
         engine = null
+        gameDir = null
+        _uiState.value = GameUiState()
     }
 
-    fun stopGame() {
-        stopEngine()
-        _ui.value = GameUiState()
-        _frame.value = _frame.value + 1
+    // ─── Input ────────────────────────────────────────────────────────────────
+
+    fun submitInput(input: String) {
+        val e = engine ?: return
+        val st = _uiState.value
+        e.post { c ->
+            val req = c.currentInputRequest
+            // 숫자 입력 대기 중에는 빈 입력 무시 (기본값이 있으면 허용)
+            if (st.inputIsNumber && input.isBlank() && req?.hasDefValue != true) return@post
+            c.pressEnterKey(false, input, false)
+        }
     }
 
-    fun restartGame() {
-        val dir = _ui.value.gameDir ?: return
-        startGame(dir)
-    }
-
-    /** 입력창에서 보낸 값 */
-    fun submit(text: String) {
-        engine?.post { it.pressEnterKey(false, text, false) }
-    }
-
-    /** 화면을 탭했을 때 */
-    fun tap(button: ConsoleButtonString?) {
+    fun advanceWait() {
         engine?.post { c ->
+            if (c.isWaitingPrimitive) c.mouseDown(0, 0, 1)
+            else if (c.isWaitingEnterKey || c.isError) c.pressEnterKey(false, "", true)
+        }
+    }
+
+    fun clickButton(value: Long) {
+        val e = engine ?: return
+        val str = stringButtonValues[value]
+        e.post { c ->
+            // 현재 선택 가능한 버튼 중에서 값이 같은 것을 찾아 Emuera 와 같은 방식으로 누른다
+            val target = c.snapshot().lines.asReversed().asSequence()
+                .flatMap { it.buttons.asSequence() }
+                .firstOrNull { b -> c.canSelect(b) && (if (str != null) !b.isInteger && b.inputs == str else b.isInteger && b.input == value) }
             when {
-                c.isWaitingPrimitive -> c.mouseDown(0, 0, 1)
-                button != null && c.canSelect(button) -> c.clickButton(button)
+                target != null -> c.clickButton(target)
                 c.isWaitingEnterKey || c.isError -> c.pressEnterKey(false, "", true)
+                c.isWaitingValue && str == null -> c.pressEnterKey(false, value.toString(), true)
             }
         }
     }
 
-    /** WAIT 를 입력 대기까지 건너뛴다 (Emuera 의 우클릭 스킵) */
-    fun skip() {
-        engine?.post { c -> if (c.isWaitingEnterKey) c.pressEnterKey(true, "", false) }
+    // ─── Save/Load ────────────────────────────────────────────────────────────
+
+    fun saveToSlot(slot: Int) { /* 저장은 게임 안의 메뉴(SAVEGAME 등)로 한다 */ }
+    fun loadFromSlot(slot: Int) { /* 불러오기는 게임 안의 메뉴(LOADGAME 등)로 한다 */ }
+
+    fun refreshSaveSlots() {
+        val dir = Program.ExeDir.ifEmpty { return }
+        val list = (0..9).map { i ->
+            val name = "save%02d.sav".format(i)
+            val f = listOf(File(dir, "sav/$name"), File(dir, name)).firstOrNull { it.isFile }
+            SaveSlotInfo(i, f != null, if (f != null) java.text.DateFormat.getDateTimeInstance().format(f.lastModified()) else "")
+        }
+        _saveSlots.value = list
     }
 
-    fun notifyFrameTick() {
-        _frame.value = _frame.value + 1
+    // ─── Rendering Helpers ───────────────────────────────────────────────────
+
+    fun dismissError() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun exportErrors(context: android.content.Context) {}
+
+    fun appendDebug(msg: String) {}
+
+    fun clearScreen() {
+        engine?.post { c ->
+            hiddenLineCount = maxOf(0, c.snapshot().lines.size - 40)
+            publish(c)
+        }
     }
 
     override fun onCleared() {
-        stopEngine()
+        engine?.shutdown()
         super.onCleared()
     }
 }
