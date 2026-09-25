@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 class EmueraEngine(val gameDir: String, val host: ConsoleHost) {
     private val executor = ScheduledThreadPoolExecutor(1, ThreadFactory { r ->
         // 深い再帰 (式の解析・関数呼び出し) に備えてスタックを大きく取る
-        Thread(null, r, "emuera-engine", 256L * 1024 * 1024).apply { isDaemon = true }
+        Thread(null, r, "emuera-engine", 64L * 1024 * 1024).apply { isDaemon = true }
     })
     private var tickTask: ScheduledFuture<*>? = null
 
