@@ -149,7 +149,8 @@ fun EraGameApp(viewModel: GameViewModel, onPickDirectory: () -> Unit) {
         modifier = Modifier.fillMaxSize(),
         color = Color(uiState.bgColor)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        // Android 15+ 는 화면이 시스템 바 뒤까지 그려지므로 아래쪽 내비게이션 바(홈/뒤로가기)와 키보드만큼 띄운다
+        Column(modifier = Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
             val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
             EraTopBar(
                 onMenuClick = { showMenu = true },
